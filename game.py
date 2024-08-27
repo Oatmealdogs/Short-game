@@ -8,6 +8,8 @@ def show_instructions():
       go [direction]
       get [item]
       cast [spell]
+      attack
+      run
     """)
 
 def show_status():
@@ -20,39 +22,30 @@ def show_status():
         print(f"You see a {rooms[current_room]['item']}")
     print("---------------------------")
 
+import sys
+import os
+import random  # Add this import
+
+sys.path.append(os.path.dirname(os.path.realpath(__file__)))
+
+from game_maps import rooms, get_starting_room
+
+# Initialize player's health and attack
+health = 100
+attack = 10  # Dagger attack
+
 # An inventory, which is initially empty
 inventory = []
 spells = []
 
-# A dictionary linking rooms to other rooms and items
-rooms = {
-    'Hall': {
-        'south': 'Kitchen',
-        'east': 'Dining Room',
-        'item': 'key'
-    },
-    'Kitchen': {
-        'north': 'Hall',
-        'item': 'monster'
-    },
-    'Dining Room': {
-        'west': 'Hall',
-        'south': 'Garden',
-        'item': 'potion'
-    },
-    'Garden': {
-        'north': 'Dining Room',
-        'item': 'fireball spellbook'
-    }
-}
-
-# Start the player in the Hall
-current_room = 'Hall'
-
-# Initialize player's health
-health = 100
+# Monster stats
+monster_health = 20  # Changed from 100 to 20
+monster_stunned = False
 
 show_instructions()
+
+# Start the player in the Hall
+current_room = get_starting_room()
 
 # Loop until the player wins or loses
 while True:
@@ -73,7 +66,7 @@ while True:
             # Set the current room to the new room
             current_room = rooms[current_room][move[1]]
         else:
-            print("try a different way!")
+            print("You can't go that way!")
 
     # If they type 'get' first
     if move[0] == 'get':
@@ -102,22 +95,60 @@ while True:
         else:
             print("You don't know that spell!")
 
-    # If they get a spellbook
-    if 'item' in rooms[current_room] and 'spellbook' in rooms[current_room]['item']:
-        spell = rooms[current_room]['item'].split()[0]
-        if spell not in spells:
-            spells.append(spell)
-            print(f"You learned the {spell} spell!")
+    # If they type 'attack' first
+    if move[0] == 'attack':
+        if 'item' in rooms[current_room] and rooms[current_room]['item'] == 'monster':
+            if 'dagger' in inventory:
+                damage = attack
+                if random.random() < 0.2:  # 20% chance of critical hit
+                    damage *= 2
+                    monster_stunned = True
+                    print("Critical hit! The monster is stunned!")
+                monster_health -= damage
+                print(f"You attack the monster for {damage} damage!")
+                if monster_health <= 0:
+                    print("You defeated the monster!")
+                    del rooms[current_room]['item']
+                    monster_health = 20  # Reset to 20 for next monster
+                else:
+                    print(f"The monster has {monster_health} health remaining.")
+                    if not monster_stunned:
+                        health -= 10  # Reduced monster damage to balance the game
+                        print("The monster attacks you! You lose 10 health.")
+                    else:
+                        monster_stunned = False
+                        print("The monster is stunned and can't attack!")
+            else:
+                print("You need a weapon to attack!")
+        else:
+            print("There's nothing to attack here!")
+
+    # If they type 'run' first
+    if move[0] == 'run':
+        if 'item' in rooms[current_room] and rooms[current_room]['item'] == 'monster':
+            possible_rooms = [dir for dir in rooms[current_room] if dir != 'item']
+            if possible_rooms:
+                escape_room = random.choice(possible_rooms)
+                current_room = rooms[current_room][escape_room]
+                print(f"You managed to escape to the {current_room}!")
+                monster_health = 20  # Reset to 20 when running away
+                monster_stunned = False
+            else:
+                print("There's nowhere to run!")
+                health -= 10  # Reduced damage when failing to run
+                print("The monster attacks you as you fail to escape! You lose 10 health.")
+        else:
+            print("There's nothing to run from here!")
 
     # If a player enters a room with a monster
     if 'item' in rooms[current_room] and rooms[current_room]['item'] == 'monster':
         print("A monster attacks you!")
-        health -= 30
+        health -= 10  # Changed from 30 to 10
         if health <= 0:
             print("You have been defeated... GAME OVER!")
             break
         else:
-            print(f"You lost 30 health. Current health: {health}")
+            print(f"You lost 10 health. Current health: {health}")
 
     # If a player enters the Garden with a key and a potion
     if current_room == 'Garden' and 'key' in inventory and 'potion' in inventory:
@@ -129,7 +160,6 @@ while True:
         current_room = 'Hall'  # Send them back
 
     # Random events that can affect health
-    import random
     if random.random() < 0.1:  # 10% chance of a random event
         event = random.choice(['trap', 'blessing'])
         if event == 'trap':
