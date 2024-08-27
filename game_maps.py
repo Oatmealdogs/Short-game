@@ -8,7 +8,7 @@ rooms = {
     },
     'Kitchen': {
         'north': 'Hall',
-        'item': 'monster'
+        'item': 'gold'
     },
     'Dining Room': {
         'west': 'Hall',
