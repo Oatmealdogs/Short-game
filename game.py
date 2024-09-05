@@ -10,6 +10,7 @@ def show_instructions():
       cast [spell]
       attack
       run
+      talk
     """)
 
 def show_status():
@@ -19,7 +20,10 @@ def show_status():
     print(f"Spells: {spells}")
     print(f"Health: {health}")
     if "item" in rooms[current_room]:
-        print(f"You see a {rooms[current_room]['item']}")
+        if rooms[current_room]['item'] == 'npc':
+            print("You see a wise old wizard here.")
+        else:
+            print(f"You see a {rooms[current_room]['item']}")
     print("---------------------------")
 
 import sys
@@ -173,3 +177,30 @@ while True:
 
     if current_room == 'Garden' and 'key' in inventory and 'potion' in inventory:
         print("You escaped with all the treasures... YOU WIN THE SECRET ENDING!")
+
+def talk_to_npc():
+    print("You meet a wise old wizard in the library.")
+    print("Wizard: 'Greetings, adventurer! I can teach you a spell for 5 gold pieces.'")
+    if 'gold' in inventory and inventory.count('gold') >= 5:
+        choice = input("Do you want to learn the spell? (yes/no) ").lower()
+        if choice == 'yes':
+            for _ in range(5):
+                inventory.remove('gold')
+            spells.append('fireball')
+            print("You learned the fireball spell!")
+        else:
+            print("Maybe next time then.")
+    else:
+        print("Wizard: 'Come back when you have enough gold, adventurer.'")
+
+# Inside the main game loop
+    # ... existing code ...
+
+    # If they type 'talk' first
+    if move[0] == 'talk':
+        if 'item' in rooms[current_room] and rooms[current_room]['item'] == 'npc':
+            talk_to_npc()
+        else:
+            print("There's no one here to talk to!")
+
+    # ... rest of the game logic ...
