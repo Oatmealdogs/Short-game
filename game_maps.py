@@ -4,20 +4,24 @@ rooms = {
     'Hall': {
         'south': 'Kitchen',
         'east': 'Dining Room',
-        'item': 'dagger'
+        'item': 'key'
     },
     'Kitchen': {
         'north': 'Hall',
-        'item': 'gold'
+        'item': 'monster'
     },
     'Dining Room': {
         'west': 'Hall',
         'south': 'Garden',
+        'east': 'Library',
         'item': 'potion'
     },
     'Garden': {
-        'north': 'Dining Room',
-        'item': 'fireball spellbook'
+        'north': 'Dining Room'
+    },
+    'Library': {
+        'west': 'Dining Room',
+        'item': 'npc'
     }
 }
 

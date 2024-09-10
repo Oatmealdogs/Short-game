@@ -1,6 +1,60 @@
 # Simple Text-Based Adventure Game
 
-from companion import Companion
+import sys
+import os
+import random
+
+# Add the current directory to the Python path
+current_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(current_dir)
+
+from game_maps import rooms, get_starting_room
+
+# Define Companion class here instead of importing
+class Companion:
+    def __init__(self, name, attack_power):
+        self.name = name
+        self.attack_power = attack_power
+        self.is_active = False
+
+    def activate(self):
+        self.is_active = True
+        print(f"{self.name} has joined your party!")
+
+    def deactivate(self):
+        self.is_active = False
+        print(f"{self.name} has left your party.")
+
+    def attack(self):
+        if self.is_active:
+            return self.attack_power
+        return 0
+
+direction_mapping = {
+    'right': 'east',
+    'left': 'west',
+    'forward': 'north',
+    'back': 'south',
+    'east': 'east',
+    'west': 'west',
+    'north': 'north',
+    'south': 'south'
+}
+
+# Initialize player's health and attack
+health = 100
+attack = 10  # Dagger attack
+
+# An inventory, which is initially empty
+inventory = []
+spells = []
+
+# Monster stats
+monster_health = 20
+monster_stunned = False
+
+# Create a companion
+companion = Companion("Fluffy", 5)  # Name: Fluffy, Attack Power: 5
 
 def show_instructions():
     print("""
@@ -9,6 +63,7 @@ def show_instructions():
     Commands:
       go [direction] (e.g., 'go right', 'go left', 'go forward', 'go back')
       get [item]
+      find [item]
       cast [spell]
       attack
       run
@@ -26,43 +81,34 @@ def show_status():
     if companion.is_active:
         print(f"Your companion {companion.name} is with you.")
     if "item" in rooms[current_room]:
-        if rooms[current_room]['item'] == 'npc':
-            print("You see a wise old wizard here.")
-        else:
-            print(f"You see a {rooms[current_room]['item']}")
+        print(f"You see a {rooms[current_room]['item']}")
     
     # Display available directions
     available_directions = [k for k, v in direction_mapping.items() if v in rooms[current_room]]
     print(f"You can go: {', '.join(available_directions)}")
     print("---------------------------")
 
-import sys
-import os
-import random  # Add this import
-
-sys.path.append(os.path.dirname(os.path.realpath(__file__)))
-
-from game_maps import rooms, get_starting_room
-
-# Initialize player's health and attack
-health = 100
-attack = 10  # Dagger attack
-
-# An inventory, which is initially empty
-inventory = []
-spells = []
-
-# Monster stats
-monster_health = 20  # Changed from 100 to 20
-monster_stunned = False
-
-# Create a companion
-companion = Companion("Fluffy", 5)  # Name: Fluffy, Attack Power: 5
-
-show_instructions()
+def talk_to_npc():
+    print("You meet a wise old wizard in the library.")
+    print("Wizard: 'Greetings, adventurer! I can teach you a spell for 5 gold pieces.'")
+    if companion.is_active:
+        print(f"Wizard: 'Ah, I see you have {companion.name} with you. A fine companion indeed!'")
+    if 'gold' in inventory and inventory.count('gold') >= 5:
+        choice = input("Do you want to learn the spell? (yes/no) ").lower()
+        if choice == 'yes':
+            for _ in range(5):
+                inventory.remove('gold')
+            spells.append('fireball')
+            print("You learned the fireball spell!")
+        else:
+            print("Maybe next time then.")
+    else:
+        print("Wizard: 'Come back when you have enough gold, adventurer.'")
 
 # Start the player in the Hall
 current_room = get_starting_room()
+
+show_instructions()
 
 # Loop until the player wins or loses
 while True:
@@ -76,21 +122,34 @@ while True:
     # Get the player's next move
     move = input("> ").lower().split()
 
+    # If they type 'find' first
+    if move[0] == 'find':
+        item_to_find = ' '.join(move[1:])  # Join all words after 'find'
+        if "item" in rooms[current_room]:
+            if item_to_find == rooms[current_room]['item']:
+                print(f"You found the {item_to_find}!")
+                inventory.append(rooms[current_room]['item'])
+                del rooms[current_room]['item']
+            else:
+                print(f"There's no {item_to_find} here.")
+        else:
+            print("There's nothing to find in this room.")
+
     # If they type 'go' first
-    if move[0] == 'go':
+    elif move[0] == 'go':
         direction = ' '.join(move[1:])  # Join all words after 'go'
         if direction in direction_mapping:
             cardinal_direction = direction_mapping[direction]
             if cardinal_direction in rooms[current_room]:
                 current_room = rooms[current_room][cardinal_direction]
-                print(f"You move {direction}.")
+                print(f"You move {direction} to the {current_room}.")
             else:
-                print(f"You can't go {direction}!")
+                print(f"You can't go {direction} from here.")
         else:
             print("I don't understand that direction!")
 
     # If they type 'get' first
-    if move[0] == 'get':
+    elif move[0] == 'get':
         # If the item is in the room, add it to their inventory
         if "item" in rooms[current_room] and move[1] == rooms[current_room]['item']:
             inventory.append(move[1])
@@ -106,7 +165,7 @@ while True:
             print(f"Can't get {move[1]}!")
 
     # If they type 'cast' first
-    if move[0] == 'cast':
+    elif move[0] == 'cast':
         if move[1] in spells:
             if move[1] == 'fireball' and 'item' in rooms[current_room] and rooms[current_room]['item'] == 'monster':
                 print("You cast fireball and defeat the monster!")
@@ -117,7 +176,7 @@ while True:
             print("You don't know that spell!")
 
     # If they type 'attack' first
-    if move[0] == 'attack':
+    elif move[0] == 'attack':
         if 'item' in rooms[current_room] and rooms[current_room]['item'] == 'monster':
             if 'dagger' in inventory:
                 damage = attack + companion.attack()  # Add companion's attack
@@ -145,17 +204,21 @@ while True:
             print("There's nothing to attack here!")
 
     # If they type 'run' first
-    if move[0] == 'run':
+    elif move[0] == 'run':
         if 'item' in rooms[current_room] and rooms[current_room]['item'] == 'monster':
-            possible_rooms = [dir for dir in rooms[current_room] if dir != 'item']
-            if possible_rooms:
-                escape_room = random.choice(possible_rooms)
-                current_room = rooms[current_room][escape_room]
-                print(f"You managed to escape to the {current_room}!")
-                monster_health = 20  # Reset to 20 when running away
-                monster_stunned = False
+            escape_chance = 0.5 + (0.1 if companion.is_active else 0)  # Companion increases escape chance
+            if random.random() < escape_chance:
+                possible_rooms = [dir for dir in rooms[current_room] if dir != 'item']
+                if possible_rooms:
+                    escape_room = random.choice(possible_rooms)
+                    current_room = rooms[current_room][escape_room]
+                    print(f"You managed to escape to the {current_room}!")
+                    monster_health = 20  # Reset to 20 when running away
+                    monster_stunned = False
+                else:
+                    print("There's nowhere to run!")
             else:
-                print("There's nowhere to run!")
+                print("You failed to escape!")
                 health -= 10  # Reduced damage when failing to run
                 print("The monster attacks you as you fail to escape! You lose 10 health.")
         else:
@@ -218,40 +281,12 @@ while True:
             print("You don't have an active companion.")
 
     # If they type 'talk' first
-    if move[0] == 'talk':
+    elif move[0] == 'talk':
         if 'item' in rooms[current_room] and rooms[current_room]['item'] == 'npc':
             talk_to_npc()
         else:
             print("There's no one here to talk to!")
 
-    # ... rest of the game logic ...
-
-# Add this near the top of your file, after imports
-direction_mapping = {
-    'right': 'east',
-    'left': 'west',
-    'forward': 'north',
-    'back': 'south',
-    # Keep the original directions as well
-    'east': 'east',
-    'west': 'west',
-    'north': 'north',
-    'south': 'south'
-}
-
-def talk_to_npc():
-    print("You meet a wise old wizard in the library.")
-    print("Wizard: 'Greetings, adventurer! I can teach you a spell for 5 gold pieces.'")
-    if companion.is_active:
-        print(f"Wizard: 'Ah, I see you have {companion.name} with you. A fine companion indeed!'")
-    if 'gold' in inventory and inventory.count('gold') >= 5:
-        choice = input("Do you want to learn the spell? (yes/no) ").lower()
-        if choice == 'yes':
-            for _ in range(5):
-                inventory.remove('gold')
-            spells.append('fireball')
-            print("You learned the fireball spell!")
-        else:
-            print("Maybe next time then.")
+    # If they type an unknown command
     else:
-        print("Wizard: 'Come back when you have enough gold, adventurer.'")
+        print("I don't understand that command.")
