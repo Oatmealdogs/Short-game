@@ -1,16 +1,20 @@
 # Simple Text-Based Adventure Game
 
+from companion import Companion
+
 def show_instructions():
     print("""
     Adventure Game
     ==============
     Commands:
-      go [direction]
+      go [direction] (e.g., 'go right', 'go left', 'go forward', 'go back')
       get [item]
       cast [spell]
       attack
       run
       talk
+      summon (activate your companion)
+      dismiss (deactivate your companion)
     """)
 
 def show_status():
@@ -19,11 +23,17 @@ def show_status():
     print(f"Inventory: {inventory}")
     print(f"Spells: {spells}")
     print(f"Health: {health}")
+    if companion.is_active:
+        print(f"Your companion {companion.name} is with you.")
     if "item" in rooms[current_room]:
         if rooms[current_room]['item'] == 'npc':
             print("You see a wise old wizard here.")
         else:
             print(f"You see a {rooms[current_room]['item']}")
+    
+    # Display available directions
+    available_directions = [k for k, v in direction_mapping.items() if v in rooms[current_room]]
+    print(f"You can go: {', '.join(available_directions)}")
     print("---------------------------")
 
 import sys
@@ -46,6 +56,9 @@ spells = []
 monster_health = 20  # Changed from 100 to 20
 monster_stunned = False
 
+# Create a companion
+companion = Companion("Fluffy", 5)  # Name: Fluffy, Attack Power: 5
+
 show_instructions()
 
 # Start the player in the Hall
@@ -65,12 +78,16 @@ while True:
 
     # If they type 'go' first
     if move[0] == 'go':
-        # Check that they are allowed to move in that direction
-        if move[1] in rooms[current_room]:
-            # Set the current room to the new room
-            current_room = rooms[current_room][move[1]]
+        direction = ' '.join(move[1:])  # Join all words after 'go'
+        if direction in direction_mapping:
+            cardinal_direction = direction_mapping[direction]
+            if cardinal_direction in rooms[current_room]:
+                current_room = rooms[current_room][cardinal_direction]
+                print(f"You move {direction}.")
+            else:
+                print(f"You can't go {direction}!")
         else:
-            print("You can't go that way!")
+            print("I don't understand that direction!")
 
     # If they type 'get' first
     if move[0] == 'get':
@@ -103,13 +120,13 @@ while True:
     if move[0] == 'attack':
         if 'item' in rooms[current_room] and rooms[current_room]['item'] == 'monster':
             if 'dagger' in inventory:
-                damage = attack
+                damage = attack + companion.attack()  # Add companion's attack
                 if random.random() < 0.2:  # 20% chance of critical hit
                     damage *= 2
                     monster_stunned = True
                     print("Critical hit! The monster is stunned!")
                 monster_health -= damage
-                print(f"You attack the monster for {damage} damage!")
+                print(f"You and your companion attack the monster for {damage} damage!")
                 if monster_health <= 0:
                     print("You defeated the monster!")
                     del rooms[current_room]['item']
@@ -156,7 +173,10 @@ while True:
 
     # If a player enters the Garden with a key and a potion
     if current_room == 'Garden' and 'key' in inventory and 'potion' in inventory:
-        print("You escaped the house... YOU WIN!")
+        if companion.is_active:
+            print("You escaped with all the treasures and your loyal companion... YOU WIN THE SECRET ENDING!")
+        else:
+            print("You escaped with all the treasures... YOU WIN!")
         break
 
     if current_room == 'Dining Room' and 'key' not in inventory:
@@ -175,12 +195,55 @@ while True:
             health = min(100, health + heal)
             print(f"You feel a blessing! You gain {heal} health.")
 
+    if random.random() < 0.05 and companion.is_active:  # 5% chance when companion is active
+        heal = random.randint(5, 10)
+        health = min(100, health + heal)
+        print(f"{companion.name} found some herbs and healed you for {heal} health!")
+
     if current_room == 'Garden' and 'key' in inventory and 'potion' in inventory:
-        print("You escaped with all the treasures... YOU WIN THE SECRET ENDING!")
+        print("You escaped with all the treasures... YOU WIN!")
+        break
+
+    # Add new commands to activate/deactivate companion
+    if move[0] == 'summon':
+        if not companion.is_active:
+            companion.activate()
+        else:
+            print(f"{companion.name} is already with you.")
+
+    if move[0] == 'dismiss':
+        if companion.is_active:
+            companion.deactivate()
+        else:
+            print("You don't have an active companion.")
+
+    # If they type 'talk' first
+    if move[0] == 'talk':
+        if 'item' in rooms[current_room] and rooms[current_room]['item'] == 'npc':
+            talk_to_npc()
+        else:
+            print("There's no one here to talk to!")
+
+    # ... rest of the game logic ...
+
+# Add this near the top of your file, after imports
+direction_mapping = {
+    'right': 'east',
+    'left': 'west',
+    'forward': 'north',
+    'back': 'south',
+    # Keep the original directions as well
+    'east': 'east',
+    'west': 'west',
+    'north': 'north',
+    'south': 'south'
+}
 
 def talk_to_npc():
     print("You meet a wise old wizard in the library.")
     print("Wizard: 'Greetings, adventurer! I can teach you a spell for 5 gold pieces.'")
+    if companion.is_active:
+        print(f"Wizard: 'Ah, I see you have {companion.name} with you. A fine companion indeed!'")
     if 'gold' in inventory and inventory.count('gold') >= 5:
         choice = input("Do you want to learn the spell? (yes/no) ").lower()
         if choice == 'yes':
@@ -192,15 +255,3 @@ def talk_to_npc():
             print("Maybe next time then.")
     else:
         print("Wizard: 'Come back when you have enough gold, adventurer.'")
-
-# Inside the main game loop
-    # ... existing code ...
-
-    # If they type 'talk' first
-    if move[0] == 'talk':
-        if 'item' in rooms[current_room] and rooms[current_room]['item'] == 'npc':
-            talk_to_npc()
-        else:
-            print("There's no one here to talk to!")
-
-    # ... rest of the game logic ...
